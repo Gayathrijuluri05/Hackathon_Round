@@ -1,0 +1,35 @@
+# Virtual Environment
+.venv/
+venv/
+
+# Python Cache
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Environment Variables
+.env
+.env.*
+
+# SQLite Database Files
+*.db
+*.sqlite
+*.sqlite3
+*.db-wal
+*.db-shm
+
+# Generated Datasets
+data/bulk/
+data/bulk_100k/
+data/generated/
+
+# Logs
+*.log
+
+# VS Code and IDE
+.vscode/
+.idea/
+
+# OS Files
+.DS_Store
+Thumbs.db

@@ -1,0 +1,4 @@
+vendor_ref,barcode,item_desc,category_path,wholesale_price,currency,availability_status,batch_date
+C-1,036000291452,Laptop Pro,Electronics > Computers,875,USD,IN_STOCK,2026-11-12T10:00:00Z
+C-2,,USB Hub,Electronics > Accessories,20,GBP,BACKORDER,2026-11-12T10:00:00Z
+C-3,,Mystery Product,Unknown Category,40,USD,IN_STOCK,2026-11-12T10:00:00Z

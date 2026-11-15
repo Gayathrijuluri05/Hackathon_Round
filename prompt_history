@@ -1,0 +1,285 @@
+**Project:** Multi-Supplier Golden Product Catalog ETL Pipeline  
+**Hackathon track:** AI Data / Forward Deployed Engineer (FDE)  
+**Primary tools:** ChatGPT (requirements analysis, solution design, code generation/review, testing guidance, and documentation); local Python, SQLite, pytest, Git, and VS Code  
+**Document type:** Curated development log, not an unedited conversation export
+
+> **Transparency note:** This document reconstructs and consolidates the key requests from our development conversation for readability. Some prompts below are close to the original wording, while others are edited summaries of multi-turn discussions. They are **not** presented as exact verbatim copies of every message, and no unobserved actions or results are claimed. The problem statement was supplied by the hackathon; AI assistance was used to interpret it and accelerate implementation. All outputs should be independently reviewed and tested.
+
+## 1. Development objective and AI usage
+
+The challenge is to build a local, reproducible pipeline that ingests heterogeneous product feeds from multiple suppliers, validates the data, standardizes schemas and values, resolves competing offers into one golden product per identity, quarantines invalid records, maintains lineage and audit logs, and demonstrates idempotency and reconciliation.
+
+Our approach used AI as a technical collaborator to: (1) convert the problem statement into engineering requirements, (2) prioritize deliverables, (3) propose a modular architecture, (4) generate and review Python/SQL implementation, (5) formulate tests and validation commands, and (6) prepare a repository for review. The candidate executed the commands locally, inspected results, and remains responsible for verifying the submitted code.
+
+## 2. Prompt-by-prompt engineering timeline
+
+### Phase 1 — Decompose the problem
+
+**Representative user request**
+
+> I am participating in a hackathon for an AI Data FDE role. We are allowed to use AI tools. Break the problem down into simple steps: understanding the problem statement, solution design, architecture, Python and SQL, and testing.
+
+**What AI was asked to do**
+
+- Convert a broad data-engineering assignment into a staged execution plan.
+- Identify the expected deliverables and the order in which to build them.
+- Keep the scope realistic for a short hackathon rather than adding unnecessary services.
+
+**Resulting plan**
+
+1. Understand requirements and acceptance criteria.
+2. Design the solution and business rules.
+3. Define architecture and database schema.
+4. Implement and review Python and SQL.
+5. Test correctness, edge cases, and idempotency.
+6. Optimize where useful and document trade-offs.
+7. Prepare a reproducible demo.
+
+### Phase 2 — Translate the supplied problem statement into an implementable project
+
+**Representative user request**
+
+> Create a ZIP project for the supplied multi-supplier product catalog problem statement.
+
+**Problem constraints incorporated**
+
+- Three heterogeneous supplier feeds, including CSV and JSONL.
+- Validation and quarantine for invalid or malformed rows.
+- Standardization of titles, categories, prices, currencies, stock, and product identifiers.
+- Deterministic matching and winner selection.
+- Golden catalog, quarantine store, and pipeline run log.
+- Source-to-output lineage, idempotency, reconciliation, synthetic data generation, tests, and documentation.
+
+**AI-assisted output**
+
+A local Python + SQLite project scaffold containing a CLI runner, supplier sample feeds, generator, SQL schema and analytics queries, tests, README, and architecture/data-dictionary documentation. The files were then iterated during subsequent phases.
+
+### Phase 3 — Solution design and prioritization
+
+**Representative user request**
+
+> Identify the core features, data transformations, business rules, and how the solution will solve the actual problem. Deliver a solution approach, feature priorities, and implementation plan.
+
+**Key decisions documented**
+
+| Area | Design decision | Reason |
+| --- | --- | --- |
+| Ingestion | Supplier-specific CSV / JSONL parsing | Supports heterogeneous vendor formats |
+| Validation | Required fields, types, barcode/check-digit checks | Avoids publishing bad records |
+| Standardization | Unified product fields and deterministic category/FX mapping | Produces comparable offers |
+| Matching | Canonical GTIN; otherwise supplier ID + SKU | Defines product identity |
+| Conflict resolution | Lowest normalized price, with stable tie-breakers | Repeatable winning-supplier decision |
+| Quarantine | Store raw payload and explicit error reason | Enables debugging and record-level failure isolation |
+| Publishing | Idempotent SQLite upserts | Avoids duplicate catalog products |
+| Observability | Run IDs, lineage, rejection counts, reconciliation | Makes the pipeline explainable |
+
+**Priority judgment:** Implement the core pipeline, data quality, testing, lineage, and idempotency before optional UI or cloud deployment.
+
+### Phase 4 — Architecture design
+
+**Representative user request**
+
+> Define the exact folder structure, Python module responsibilities, SQLite table schemas, pipeline execution flow, and interactions between components before reviewing implementation code.
+
+**Proposed architecture**
+
+```text
+Supplier files (CSV / JSONL)
+          |
+          v
+      Extraction
+          |
+          v
+      Validation --------> Quarantine
+          |
+          v
+   Standardization
+          |
+          v
+  Entity matching / conflict resolution
+          |
+          v
+    SQLite publishing
+     |            |
+ Golden catalog   Supplier offer / source lineage
+          |
+          v
+ Reconciliation + run audit
+```
+
+**Module separation**
+
+- `src/config.py` — sources, rates, mapping, and processing rules.
+- `src/extract.py` — input parsing and malformed-row isolation.
+- `src/validate.py` — fields, identifiers, and timestamp validation.
+- `src/transform.py` — price, title, category, and stock normalization.
+- `src/resolve.py` — identity matching and deterministic selection.
+- `src/load.py` — SQLite setup and persistence utilities.
+- `src/pipeline.py` — run orchestration and transactional processing.
+- Additional project modules and names may differ slightly in the submitted revision; the repository source remains authoritative.
+
+**Database design**
+
+The minimum required targets were `golden_products`, `quarantine_products`, and `pipeline_runs`. During review, persistent supplier-offer storage and raw-ingestion lineage were also proposed/added to support cross-run comparisons and source traceability. Confirm exact table definitions against `sql/schema.sql` in the submitted revision.
+
+### Phase 5 — Implementation review and hardening
+
+**Representative user request**
+
+> Review the existing code module by module, verify it against the architecture, and strengthen any gaps before the final hackathon demo.
+
+**Issues identified during review**
+
+1. Choosing a winning supplier only from the current input batch may ignore valid offers from earlier runs.
+2. Retaining only a catalog-level source hash is not enough to reconstruct every historical raw input record.
+3. Random rejection event IDs can generate duplicate quarantine rows when the same invalid source row is reprocessed.
+
+**AI-assisted remedies**
+
+- Retain latest accepted offers per supplier for cross-run comparisons.
+- Retain raw ingestion payloads and identifiers for lineage.
+- Use stable rejection fingerprints to make repeated input handling idempotent.
+- Clarify accounting for published, rejected, deduplicated, and unchanged records.
+- Extend unit/integration tests for these behaviors.
+
+**Verification caveat:** Architecture decisions and generated patches are not a substitute for reading the final code or executing tests. The local repository is the source of truth.
+
+### Phase 6 — Run on Windows CMD
+
+**Representative user request and observed error**
+
+> Running `python run_pipeline.py \` failed with “unrecognized arguments: \\”; CMD then treated `--input-dir` and `--db` as separate commands.
+
+**AI guidance**
+
+The original command used Unix-style `\` line continuation. Windows Command Prompt requires a one-line command or the `^` continuation character.
+
+```cmd
+python run_pipeline.py --input-dir data/sample --db output/catalog.db --report
+```
+
+**Engineering takeaway:** Demo instructions must match the reviewer's operating system. README examples should include Windows-friendly syntax.
+
+### Phase 7 — Automated testing
+
+**Representative user action**
+
+> Ran `python -m pytest -q` locally and shared the results.
+
+**Reported local output**
+
+```text
+26 passed, 5 subtests passed in 1.25s
+```
+
+**Interpretation**
+
+The reported test suite completed without failures in that local run. Passing tests are evidence for the tested scenarios; they are not proof that every scale, error condition, or production environment is covered. Re-run the suite on the exact version being submitted.
+
+### Phase 8 — Sample pipeline validation
+
+**Representative user-reported results**
+
+- A repeat run published **0** new catalog records and left **5** catalog records unchanged.
+- Input accounting balanced:
+
+```text
+Records read        = 13
+Records published   =  0
+Records rejected    =  4
+Records deduplicated=  4
+Records unchanged   =  5
+Difference          =  0
+```
+
+- For `Laptop Pro` (GTIN `00036000291452`), supplier B won at **USD 850.00**, compared with supplier A at **USD 899.00** and supplier C at **USD 875.00**.
+
+**Interpretation**
+
+These reported observations support sample-run idempotency, deterministic accounting, and lowest-price conflict resolution. They are observations shared from the user's local execution, not independently re-measured in this document.
+
+### Phase 9 — Synthetic bulk-data guidance
+
+**Representative user requests**
+
+> How do I use `generate_data.py`? Are the 10,000-record and 100,000-record steps necessary?
+
+**Commands discussed**
+
+```cmd
+python generate_data.py --count 10000 --out data/bulk --seed 42
+python run_pipeline.py --input-dir data/bulk --db output/bulk_catalog.db --report
+```
+
+**Reasoning**
+
+- A 10,000-record run offers a practical scalability and reconciliation demonstration.
+- A second run on the same database checks idempotency on a larger input.
+- A 100,000-record benchmark is a useful stretch goal, not a prerequisite for the first Git commit.
+
+**Evidence status:** The conversation includes guidance to run these commands; it does not include a pasted local terminal result for the user's 10,000/100,000-record runs. Do not claim those runs were completed unless you verify them.
+
+### Phase 10 — Repository and environment readiness
+
+**Representative user requests**
+
+> Is the project ready to push to Git? Should I create a virtual environment? How do I create a `.gitignore` file? Are the current files enough?
+
+**AI guidance**
+
+- Create and activate `.venv` in Windows CMD; install from `requirements.txt`.
+- Keep runnable source, SQL, test cases, documentation, and small sample feeds in Git.
+- Exclude virtual environments, caches, local SQLite databases, logs, secrets, and generated bulk datasets.
+- Confirm `git status` before committing and pushing.
+
+```cmd
+python -m venv .venv
+.venv\Scripts\activate
+python -m pip install -r requirements.txt
+python -m pytest -q
+git add .
+git status
+```
+
+**Repository readiness:** The user showed a project folder containing source modules, SQL scripts, test modules, three sets of input folders, documentation, and a root `.gitignore`. A directory listing alone does not confirm final Git staging or remote-push success.
+
+## 3. How AI suggestions were evaluated
+
+| AI contribution | Human / tool verification |
+| --- | --- |
+| Step-by-step breakdown | Compared with supplied hackathon requirements |
+| Modular Python + SQLite architecture | Evaluated for local reproducibility and hackathon scope |
+| Generated/refined pipeline | Executed locally using the CLI runner |
+| Automated test recommendations | Ran pytest and shared passing output |
+| Idempotency design | Re-ran the sample pipeline and checked row counts |
+| Conflict-selection policy | Checked the three supplier prices for the same GTIN |
+| Git hygiene advice | Created root `.gitignore`; final staged-file review still needed |
+
+## 4. Known limitations and future work
+
+- Fixed FX rates make runs deterministic but may not reflect live exchange markets.
+- GTIN-based matching assumes valid shared GTINs represent the same physical product; fallback identity is scoped to supplier + SKU.
+- Boolean availability is not equivalent to exact stock quantity; any proxy must be documented.
+- SQLite is appropriate for a local vertical slice; distributed or high-concurrency workloads could require a different storage and processing approach.
+- Passing tests and a successful small sample do not establish production-scale throughput.
+- The README, SQL schema, and actual code should be checked for consistency before final submission.
+
+## 5. Final reproducibility checklist
+
+- [ ] Clone a clean copy of the GitHub repository.
+- [ ] Create and activate a virtual environment.
+- [ ] Install project dependencies from `requirements.txt`.
+- [ ] Run `python -m pytest -q` successfully.
+- [ ] Run the sample pipeline and save the reconciliation summary.
+- [ ] Re-run the sample pipeline and confirm no duplicate catalog products.
+- [ ] Run the synthetic 10,000-record test and record its measured time and counts.
+- [ ] Verify `.gitignore` excludes secrets, caches, generated databases, and bulk data.
+- [ ] Ensure the README commands and database schema match the submitted code.
+
+## 6. Suggested 30-second explanation for evaluators
+
+> I used AI as an engineering assistant, not as a replacement for validation. I first broke the business problem into explicit acceptance criteria, then designed a lightweight Python and SQLite ETL pipeline. AI helped draft and review modules for ingestion, validation, transformation, conflict resolution, lineage, and testing. I ran the test suite locally and verified the sample rerun's reconciliation and idempotency. I also reviewed cross-run conflict and traceability risks and incorporated a more robust design. This document records the major prompts, decisions, verification steps, and remaining limitations.
+
+---
+
+**Note to reviewers:** This is a curated and transparent record of material AI interactions, not an exhaustive transcript. Raw chat history can be supplied separately if the event explicitly requires exact prompts and outputs.

@@ -1,0 +1,5 @@
+{"item_id":"B-1","gtin":"036000291452","title":"Laptop Pro","category":"Laptops","amount_cents":85000,"currency_code":"USD","in_stock":true,"feed_timestamp":"2026-11-11T10:00:00Z"}
+{"item_id":"B-2","gtin":"042100005264","title":"Wireless Mouse","category":"Accessories","amount_cents":2200,"currency_code":"USD","in_stock":true,"feed_timestamp":"2026-11-11T10:00:00Z"}
+{"item_id":"B-3","gtin":"","title":"Portable Dock","category":"Accessories","amount_cents":3600,"currency_code":"EUR","in_stock":false,"feed_timestamp":"2026-11-11T10:00:00Z"}
+{"item_id": BROKEN JSON
+{"item_id":"B-4","gtin":"","title":"","category":"Accessories","amount_cents":3200,"currency_code":"USD","in_stock":true,"feed_timestamp":"2026-11-11T10:00:00Z"}
